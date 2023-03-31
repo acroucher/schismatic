@@ -575,6 +575,12 @@ class grid(object):
         """Returns elements in specified polygon."""
         return [e for e in self.element if e.inside(polygon)]
 
+    def nodes_in_elements(self, elements):
+        """Returns list of nodes in specified elements."""
+        nodes = set()
+        for e in elements: nodes = nodes | set(e.node)
+        return list(nodes)
+
     def fit(self, data, smooth = 0., nodes = []):
         """Fits nodel values to scattered data using least-squares
         finite-element fitting with Sobolev smoothing."""
