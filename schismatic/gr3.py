@@ -415,7 +415,8 @@ class grid(object):
                 dv = (maxv - minv) / 10
                 levels = np.arange(np.min(v), np.max(v) + dv, dv)
             tri = [[n.index - 1 for n in e.node] for e in self.element]
-            ax.tricontourf(x, y, tri, v, levels)
+            tc = ax.tricontourf(x, y, tri, v, levels)
+            fig.colorbar(tc)
 
         elements = kwargs.get('elements', True)
         if elements:
