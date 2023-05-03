@@ -214,6 +214,12 @@ class grid(object):
         return np.min(v), np.max(v)
     value_range = property(_get_value_range)
 
+    def _get_pos(self):
+        return np.array([n.pos for n in self.node])
+    def _set_pos(self, pos):
+        for i,n in enumerate(self.node): n.pos = pos[i,:]
+    pos = property(_get_pos, _set_pos)
+
     def add_node(self, n):
         self.node.append(n)
 
@@ -258,8 +264,7 @@ class grid(object):
                 raise Exception('Non-adjacent nodes passed to open_land_boundary().')
 
     def get_bounds(self):
-        pts = [n.pos for n in self.node]
-        return geom.bounds_of_points(pts)
+        return geom.bounds_of_points(self.pos)
     bounds = property(get_bounds)
 
     def compute_quadtree(self):
@@ -406,9 +411,8 @@ class grid(object):
 
         contours = kwargs.get('contours', False)
         if contours:
-            x = np.array([n.pos[0] for n in self.node])
-            y = np.array([n.pos[1] for n in self.node])
-            v = np.array([n.value for n in self.node])
+            pos = self.pos
+            v = self.values
             levels = kwargs.get('levels', None)
             if levels is None:
                 minv, maxv = np.min(v), np.max(v)
@@ -416,7 +420,7 @@ class grid(object):
                 levels = np.arange(np.min(v), np.max(v) + dv, dv)
             tri = [[n.index - 1 for n in e.node] for e in self.element
                    if e.num_nodes == 3]
-            tc = ax.tricontourf(x, y, tri, v, levels)
+            tc = ax.tricontourf(pos[:,0], pos[:,1], tri, v, levels)
             fig.colorbar(tc)
 
         elements = kwargs.get('elements', True)
