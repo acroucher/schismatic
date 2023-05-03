@@ -406,10 +406,14 @@ class grid(object):
 
         contours = kwargs.get('contours', False)
         if contours:
+            x = np.array([n.pos[0] for n in self.node])
+            y = np.array([n.pos[1] for n in self.node])
+            v = np.array([n.value for n in self.node])
             levels = kwargs.get('levels', None)
-            x = [n.pos[0] for n in self.node]
-            y = [n.pos[1] for n in self.node]
-            v = [n.value for n in self.node]
+            if levels is None:
+                minv, maxv = np.min(v), np.max(v)
+                dv = (maxv - minv) / 10
+                levels = np.arange(np.min(v), np.max(v) + dv, dv)
             tri = [[n.index - 1 for n in e.node] for e in self.element]
             ax.tricontourf(x, y, tri, v, levels)
 
