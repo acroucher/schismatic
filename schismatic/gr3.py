@@ -403,12 +403,24 @@ class grid(object):
         linewidth = kwargs.get('linewidth', 0.2)
         linecolour = kwargs.get('linecolour', 'black')
         colourmap = kwargs.get('colourmap', None)
-        polys = collections.PolyCollection(verts,
-                                           linewidth = linewidth,
-                                           facecolors = [],
-                                           edgecolors = linecolour,
-                                           cmap = colourmap)
-        ax.add_collection(polys)
+
+        contours = kwargs.get('contours', False)
+        if contours:
+            levels = kwargs.get('levels', None)
+            x = [n.pos[0] for n in self.node]
+            y = [n.pos[1] for n in self.node]
+            v = [n.value for n in self.node]
+            tri = [[n.index - 1 for n in e.node] for e in self.element]
+            ax.tricontourf(x, y, tri, v, levels)
+
+        elements = kwargs.get('elements', True)
+        if elements:
+            polys = collections.PolyCollection(verts,
+                                               linewidth = linewidth,
+                                               facecolors = [],
+                                               edgecolors = linecolour,
+                                               cmap = colourmap)
+            ax.add_collection(polys)
 
         bdy_colour = kwargs.get('boundary_colour', {'open': 'blue', 'land': 'red'})
         for bdy in self.boundary:
