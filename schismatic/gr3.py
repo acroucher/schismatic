@@ -412,7 +412,7 @@ class grid(object):
         contours = kwargs.get('contours', False)
         if contours:
             pos = self.pos
-            v = self.values
+            v = kwargs.get('values', self.values)
             levels = kwargs.get('levels', None)
             if levels is None:
                 minv, maxv = np.min(v), np.max(v)
