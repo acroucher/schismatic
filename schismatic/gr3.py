@@ -414,7 +414,8 @@ class grid(object):
                 minv, maxv = np.min(v), np.max(v)
                 dv = (maxv - minv) / 10
                 levels = np.arange(np.min(v), np.max(v) + dv, dv)
-            tri = [[n.index - 1 for n in e.node] for e in self.element]
+            tri = [[n.index - 1 for n in e.node] for e in self.element
+                   if e.num_nodes == 3]
             tc = ax.tricontourf(x, y, tri, v, levels)
             fig.colorbar(tc)
 
