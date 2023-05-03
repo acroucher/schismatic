@@ -405,7 +405,7 @@ class grid(object):
                         clip_on = True, horizontalalignment = 'center',
                         color = label_colour)
 
-        linewidth = kwargs.get('linewidth', 0.2)
+        linewidth = kwargs.get('linewidth', 0.1)
         linecolour = kwargs.get('linecolour', 'black')
         colourmap = kwargs.get('colourmap', None)
 
@@ -432,7 +432,7 @@ class grid(object):
                                                cmap = colourmap)
             ax.add_collection(polys)
 
-        bdy_colour = kwargs.get('boundary_colour', {'open': 'blue', 'land': 'red'})
+        bdy_colour = kwargs.get('boundary_colour', {'open': 'red', 'land': 'black'})
         for bdy in self.boundary:
             bdy_type = 'open' if bdy.open else 'land'
             colour = bdy_colour[bdy_type]
