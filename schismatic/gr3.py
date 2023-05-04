@@ -409,7 +409,7 @@ class grid(object):
         linecolour = kwargs.get('linecolour', 'black')
         colourmap = kwargs.get('colourmap', None)
 
-        contours = kwargs.get('contours', False)
+        contours = kwargs.get('contours', True)
         if contours:
             pos = self.pos
             v = kwargs.get('values', self.values)
@@ -423,7 +423,7 @@ class grid(object):
             tc = ax.tricontourf(pos[:,0], pos[:,1], tri, v, levels)
             fig.colorbar(tc)
 
-        elements = kwargs.get('elements', True)
+        elements = kwargs.get('elements', False)
         if elements:
             polys = collections.PolyCollection(verts,
                                                linewidth = linewidth,
