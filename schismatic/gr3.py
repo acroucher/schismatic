@@ -376,6 +376,9 @@ class grid(object):
 
     def transform_crs(self, old, new):
         """Transforms CRS from old to new."""
+        prefix = 'EPSG:'
+        if not old.startswith(prefix): old = prefix + old
+        if not new.startswith(prefix): new = prefix + new
         transformer = Transformer.from_crs(old, new, always_xy = True)
         for n in self.node:
             n.pos = transformer.transform(n.pos[0], n.pos[1])
