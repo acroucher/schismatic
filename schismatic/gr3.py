@@ -426,7 +426,8 @@ class grid(object):
             tri = [[n.index - 1 for n in e.node] for e in self.element
                    if e.num_nodes == 3]
             tc = ax.tricontourf(pos[:,0], pos[:,1], tri, v, levels)
-            fig.colorbar(tc)
+            values_label = kwargs.get('values_label', None)
+            fig.colorbar(tc, label = values_label)
 
         elements = kwargs.get('elements', False)
         if elements:
