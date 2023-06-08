@@ -390,7 +390,9 @@ class grid(object):
         import matplotlib.pyplot as plt
         import matplotlib.collections as collections
 
-        if 'axes' in kwargs: ax = kwargs['axes']
+        if 'axes' in kwargs:
+            ax = kwargs['axes']
+            fig = ax.get_figure()
         else: fig, ax = plt.subplots()
 
         labels = kwargs.get('label', None)
