@@ -44,6 +44,11 @@ class element(object):
     def _get_num_nodes(self): return len(self.node)
     num_nodes = property(_get_num_nodes)
 
+    def _get_node_indices(self):
+        # Returns (zero-based) indices of nodes in the element. 
+        return np.array([n.index - 1 for n in self.node], dtype = int)
+    node_indices = property(_get_node_indices)
+
     def _get_centroid(self):
         if self._centroid is None:
             poly = [n.pos for n in self.node]
