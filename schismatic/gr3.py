@@ -85,12 +85,13 @@ class element(object):
             return 0.25 * np.array([[-b0, -a0], [b0, -a1], [b1, a1], [-b1, a0]])
 
     def interpolate(self, vals, xi, psi = None):
-        """Interpolates array of nodal values at local coordinate xi.  Basis
-        functions at xi can be optionally supplied, if available,
-        otherwise they will be calculated.
+        """Interpolates array of nodal values (scalars or arrays) at local
+        coordinate xi.  Basis functions at xi can be optionally
+        supplied, if available, otherwise they will be calculated.
+
         """
         if psi is None: psi = self.basis(xi)
-        return np.sum(psi * vals)
+        return np.sum(psi * vals, axis = -1)
 
     def global_pos(self, xi, psi = None):
         """Returns global position of local element coordinates xi.  Basis
