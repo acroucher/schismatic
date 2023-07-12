@@ -6,6 +6,7 @@ import xml.dom.minidom
 from schismatic import geom, quadtree
 import numpy as np
 from scipy import sparse
+from scipy.spatial import cKDTree
 from pyproj import Transformer
 import netCDF4
 from vtk import vtkUnstructuredGrid, vtkPoints, vtkIdList, vtkFloatArray
@@ -183,6 +184,7 @@ class grid(object):
         self.element = []
         self.boundary = []
         self._qtree = None
+        self._kdtree = None
         if filename is not None: self.read(filename)
         
     def __repr__(self):
@@ -281,6 +283,15 @@ class grid(object):
             self.compute_quadtree()
         return self._qtree
     qtree = property(_get_qtree)
+
+    def compute_kdtree(self):
+        self._kdtree = cKDTree(self.pos)
+
+    def _get_kdtree(self):
+        if self._kdtree is None:
+            self.compute_kdtree()
+        return self._kdtree
+    kdtree = property(_get_kdtree)
 
     def read(self, filename):
         """Reads grid from *.gr3 file"""
@@ -614,6 +625,11 @@ class grid(object):
         nodes = set()
         for e in elements: nodes = nodes | set(e.node)
         return list(nodes)
+
+    def find_node(self, pos):
+        """Finds node nearest to specified point."""
+        r, i = self.kdtree.query(pos)
+        return self.node[i]
 
     def fit(self, data, smooth = 0., nodes = []):
         """Fits nodel values to scattered data using least-squares
