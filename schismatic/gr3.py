@@ -387,7 +387,7 @@ class grid(object):
         if not new.startswith(prefix): new = prefix + new
         transformer = Transformer.from_crs(old, new, always_xy = True)
         for n in self.node:
-            n.pos = transformer.transform(n.pos[0], n.pos[1])
+            n.pos = np.array(transformer.transform(n.pos[0], n.pos[1]))
         for e in self.element: e._centroid = None
 
     def plot(self, **kwargs):
