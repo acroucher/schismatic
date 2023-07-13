@@ -440,9 +440,15 @@ class grid(object):
                 minv, maxv = np.min(v), np.max(v)
                 dv = (maxv - minv) / 10
                 levels = np.arange(np.min(v), np.max(v) + dv, dv)
-            tri = [e.node_indices for e in self.element
-                   if e.num_nodes == 3]
-            tc = ax.tricontourf(pos[:,0], pos[:,1], tri, v, levels)
+            mask = np.isfinite(v)
+            maski = dict([(x, i) for i, x in enumerate(np.where(mask)[0])])
+            tri = []
+            for e in self.element:
+                if e.num_nodes == 3:
+                    en = e.node_indices
+                    if np.all(mask[en]):
+                        tri.append([maski[i] for i in en])
+            tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask], levels)
             values_label = kwargs.get('values_label', None)
             fig.colorbar(tc, label = values_label)
 
