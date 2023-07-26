@@ -699,3 +699,14 @@ class grid(object):
         A = A.tocsr()
         z = sparse.linalg.spsolve(A, b)
         for i, n in enumerate(all_nodes): n.value = z[i]
+
+    def pos_value(self, pos):
+        """Returns interpolated value at given position (or None if pos is
+        outside the grid)."""
+        elt = self.find_element(pos)
+        if elt:
+            xi = elt.local_pos(pos)
+            vals = self.values[elt.node_indices]
+            return elt.interpolate(vals, xi)
+        else:
+            return None
