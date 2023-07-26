@@ -400,6 +400,7 @@ class grid(object):
         for n in self.node:
             n.pos = np.array(transformer.transform(n.pos[0], n.pos[1]))
         for e in self.element: e._centroid = None
+        self._qtree = None
 
     def plot(self, **kwargs):
         """Creates Matplotlib plot of grid"""
