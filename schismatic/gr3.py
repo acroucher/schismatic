@@ -436,11 +436,6 @@ class grid(object):
         if contours:
             pos = self.pos
             v = kwargs.get('values', self.values)
-            levels = kwargs.get('levels', None)
-            if levels is None:
-                minv, maxv = np.min(v), np.max(v)
-                dv = (maxv - minv) / 10
-                levels = np.arange(np.min(v), np.max(v) + dv, dv)
             mask = np.isfinite(v)
             maski = dict([(x, i) for i, x in enumerate(np.where(mask)[0])])
             tri = []
@@ -449,7 +444,11 @@ class grid(object):
                     en = e.node_indices
                     if np.all(mask[en]):
                         tri.append([maski[i] for i in en])
-            tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask], levels)
+            if 'levels' in kwargs:
+                levels = kwargs.get('levels')
+                tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask], levels)
+            else: # default contour levels
+                tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask])
             values_label = kwargs.get('values_label', None)
             fig.colorbar(tc, label = values_label)
 
