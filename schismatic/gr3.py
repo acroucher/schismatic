@@ -637,11 +637,11 @@ class grid(object):
         r, i = self.kdtree.query(pos)
         return self.node[i]
 
-    def fit(self, data, smooth = 0., nodes = []):
+    def fit(self, data, smooth = 0., nodes = None):
         """Fits nodel values to scattered data using least-squares
         finite-element fitting with Sobolev smoothing."""
 
-        if not nodes:
+        if nodes is None:
             nodes = self.node
             elements = self.element
         else:
@@ -649,55 +649,57 @@ class grid(object):
             for n in nodes: elements = elements | set(n.element)
             elements = list(elements)
 
-        all_nodes = set(nodes)
-        for e in elements: all_nodes = all_nodes | set(e.node)
-        bdy_nodes = all_nodes - set(nodes)
-        all_nodes = list(all_nodes)
+        if len(nodes) > 0:
 
-        node_index = dict([(node.index, i) for i, node in enumerate(all_nodes)])
-        num_nodes = len(all_nodes)
-        bounds = geom.bounds_of_points([n.pos for n in all_nodes])
-        qt = quadtree.quadtree(bounds, elements)
+            all_nodes = set(nodes)
+            for e in elements: all_nodes = all_nodes | set(e.node)
+            bdy_nodes = all_nodes - set(nodes)
+            all_nodes = list(all_nodes)
 
-        A = sparse.lil_matrix((num_nodes, num_nodes))
-        b = np.zeros(num_nodes)
-        for idata, d in enumerate(data):
-            pos, val = d[0:2], d[2]
-            if geom.in_rectangle(pos, bounds):
-                e = qt.search(pos)
-                if e:
-                    xi = e.local_pos(pos)
-                    psi = e.basis(xi)
-                    for i, nodei in enumerate(e.node):
-                        I = node_index[nodei.index]
-                        for j, nodej in enumerate(e.node):
-                            J = node_index[nodej.index]
-                            A[I, J] += psi[i] * psi[j]
-                        b[I] += psi[i] * val
+            node_index = dict([(node.index, i) for i, node in enumerate(all_nodes)])
+            num_nodes = len(all_nodes)
+            bounds = geom.bounds_of_points([n.pos for n in all_nodes])
+            qt = quadtree.quadtree(bounds, elements)
 
-        smooth = {3: 0.5 * smooth * np.array([[1., 0., -1.],
-                                              [0., 1., -1.],
-                                              [-1., -1., 2.]]),
-                  4: smooth / 6. * np.array([[4., -1., -2., -1.],
-                                             [-1., 4., -1., -2.],
-                                             [-2., -1., 4., -1.],
-                                             [-1., -2., -1., 4.]])}
-        for e in elements:
-            for i, nodei in enumerate(e.node):
-                I = node_index[nodei.index]
-                for j, nodej in enumerate(e.node):
-                    J = node_index[nodej.index]
-                    A[I, J] += smooth[e.num_nodes][i, j]
+            A = sparse.lil_matrix((num_nodes, num_nodes))
+            b = np.zeros(num_nodes)
+            for idata, d in enumerate(data):
+                pos, val = d[0:2], d[2]
+                if geom.in_rectangle(pos, bounds):
+                    e = qt.search(pos)
+                    if e:
+                        xi = e.local_pos(pos)
+                        psi = e.basis(xi)
+                        for i, nodei in enumerate(e.node):
+                            I = node_index[nodei.index]
+                            for j, nodej in enumerate(e.node):
+                                J = node_index[nodej.index]
+                                A[I, J] += psi[i] * psi[j]
+                            b[I] += psi[i] * val
 
-        for n in bdy_nodes:
-            I = node_index[n.index]
-            A[I,:] = 0.
-            A[I,I] = 1.
-            b[I] = n.value
+            smooth = {3: 0.5 * smooth * np.array([[1., 0., -1.],
+                                                  [0., 1., -1.],
+                                                  [-1., -1., 2.]]),
+                      4: smooth / 6. * np.array([[4., -1., -2., -1.],
+                                                 [-1., 4., -1., -2.],
+                                                 [-2., -1., 4., -1.],
+                                                 [-1., -2., -1., 4.]])}
+            for e in elements:
+                for i, nodei in enumerate(e.node):
+                    I = node_index[nodei.index]
+                    for j, nodej in enumerate(e.node):
+                        J = node_index[nodej.index]
+                        A[I, J] += smooth[e.num_nodes][i, j]
 
-        A = A.tocsr()
-        z = sparse.linalg.spsolve(A, b)
-        for i, n in enumerate(all_nodes): n.value = z[i]
+            for n in bdy_nodes:
+                I = node_index[n.index]
+                A[I,:] = 0.
+                A[I,I] = 1.
+                b[I] = n.value
+
+            A = A.tocsr()
+            z = sparse.linalg.spsolve(A, b)
+            for i, n in enumerate(all_nodes): n.value = z[i]
 
     def pos_value(self, pos, val = None):
         """Returns interpolated value at given position (or None if pos is
