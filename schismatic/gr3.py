@@ -160,6 +160,16 @@ class element(object):
         """Returns True if the element centroid is inside the polygon."""
         return geom.in_polygon(self.centroid, polygon)
 
+    def _get_size(self):
+        """Returns approximate horizontal size of element, from length of
+        longest side."""
+        if self._size is None:
+            side_lengths = np.array([np.linalg.norm(n.pos - self.node[i - 1].pos)
+                                     for i,n in enumerate(self.node)])
+            self._size = np.max(side_lengths)
+        return self._size
+    size = property(_get_size)
+
 class boundary(object):
     """Grid boundary"""
 
