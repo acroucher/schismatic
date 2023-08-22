@@ -728,3 +728,19 @@ class grid(object):
             return elt.interpolate(vals, xi)
         else:
             return None
+
+    def cfl(self, timestep = 200., min_depth = 0.1):
+        """Return array of nodal estimates of CFL number."""
+        g = 9.8
+        cfl = []
+        for n in self.node:
+            if n.value < min_depth:
+                u = 1.
+                root_gh = 0.
+            else:
+                u = 0.
+                root_gh = np.sqrt(g * n.value)
+            dx = n.element_size
+            cr = (u + root_gh) * timestep / dx
+            cfl.append(cr)
+        return np.array(cfl)
