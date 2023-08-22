@@ -462,7 +462,13 @@ class grid(object):
                         tri.append([maski[i] for i in en])
             if 'levels' in kwargs:
                 levels = kwargs.get('levels')
-                tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask], levels)
+                if 'contourcolours' in kwargs:
+                    contourcolours = kwargs.get('contourcolours')
+                    tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask],
+                                        levels, colors = contourcolours)
+                else:
+                    tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask],
+                                        levels)
             else: # default contour levels
                 tc = ax.tricontourf(pos[mask, 0], pos[mask, 1], tri, v[mask])
             values_label = kwargs.get('values_label', None)
