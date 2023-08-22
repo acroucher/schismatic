@@ -495,6 +495,8 @@ class grid(object):
         ax.set_ylabel(kwargs.get('ylabel', 'y'))
 
         ax.set_aspect(kwargs.get('aspect', 'equal'))
+        if 'title' in kwargs:
+            ax.set_title(kwargs.get('title'))
         ax.autoscale_view()
 
         if 'axes' not in kwargs: plt.show()
