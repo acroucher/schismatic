@@ -38,6 +38,7 @@ class element(object):
         self.index = index
         self.node = node
         self._centroid = None
+        self._size = None
 
     def __repr__(self):
         return str(self.index)
