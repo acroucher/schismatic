@@ -752,3 +752,13 @@ class grid(object):
             cr = (u + root_gh) * timestep / dx
             cfl.append(cr)
         return np.array(cfl)
+
+    def plot_cfl(self, timestep = 200., min_depth = 0.1,
+                 contourcolours = ['red', 'orange', 'green', 'yellow']):
+        """Plots CFL number for given timestep size and minimum depth."""
+        cfl = self.cfl(timestep, min_depth)
+        contour_levels = np.array([0., 0.4, 0.8, 6, 20])
+        self.plot(values = cfl, levels = contour_levels,
+                  contourcolours = contourcolours,
+                  values_label = 'CFL',
+                  title = 'timestep: %3.0f s' % timestep)
