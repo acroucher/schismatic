@@ -31,6 +31,11 @@ class node(object):
         """Returns True if the node is inside the polygon."""
         return geom.in_polygon(self.pos, polygon)
 
+    def _get_element_size(self):
+        dx = np.array([e.size for e in self.element])
+        return np.average(dx)
+    element_size = property(_get_element_size)
+
 class element(object):
     """Grid element"""
 
