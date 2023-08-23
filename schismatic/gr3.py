@@ -757,7 +757,13 @@ class grid(object):
                  contourcolours = ['red', 'orange', 'green', 'yellow']):
         """Plots CFL number for given timestep size and minimum depth."""
         cfl = self.cfl(timestep, min_depth)
-        contour_levels = np.array([0., 0.4, 0.8, 6, 20])
+        maxcfl = np.max(cfl)
+        contour_levels = [0.]
+        for level in [0.4, 0.8, 6]:
+            if level < maxcfl:
+                contour_levels.append(level)
+        if maxcfl > contour_levels[-1]:
+            contour_levels.append(maxcfl)
         self.plot(values = cfl, levels = contour_levels,
                   contourcolours = contourcolours,
                   values_label = 'CFL',
