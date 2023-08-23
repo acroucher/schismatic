@@ -753,6 +753,14 @@ class grid(object):
             cfl.append(cr)
         return np.array(cfl)
 
+    def min_timestep(self, min_cfl = 0.4, min_depth = 0.1):
+        """Returns minimum timestep size required to keep CFL number above the
+        specified minimium."""
+        dt = 100.
+        cfl = self.cfl(dt, min_depth)
+        cfl0 = np.min(cfl)
+        return min_cfl / cfl0 * dt
+
     def plot_cfl(self, timestep = 200., min_depth = 0.1,
                  contourcolours = ['red', 'orange', 'green', 'yellow']):
         """Plots CFL number for given timestep size and minimum depth."""
