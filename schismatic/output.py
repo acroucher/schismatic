@@ -38,34 +38,36 @@ class output(object):
             mins = int((h - hr) * 60)
             return datetime(y, m, d, hr, mins)
 
-        ds_2d = open_dataset(output_dir, 'out2d_*.nc')
+        self.ds_2d = open_dataset(output_dir, 'out2d_*.nc')
 
-        self.start_datetime = schism_start_datetime(ds_2d)
+        self.start_datetime = schism_start_datetime(self.ds_2d)
         self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
-                                                        for s in ds_2d['time'].values])
+                                                        for s in self.ds_2d['time'].values])
         self.end_datetime = self.datetime[-1]
         self.num_times = len(self.datetime)
 
-        self.elevation = ds_2d['elevation']
-        self.depthAverageVelX = ds_2d['depthAverageVelX']
-        self.depthAverageVelY = ds_2d['depthAverageVelY']
+        self.elevation = self.ds_2d['elevation']
+        self.depthAverageVelX = self.ds_2d['depthAverageVelX']
+        self.depthAverageVelY = self.ds_2d['depthAverageVelY']
 
-        self.zCoordinates = open_dataset(output_dir, 'zCoordinates_*.nc')['zCoordinates']
-        self.temperature = open_dataset(output_dir, 'temperature_*.nc')['temperature']
-        self.salinity = open_dataset(output_dir, 'salinity_*.nc')['salinity']
-        self.horizontalVelX = open_dataset(output_dir, 'horizontalVelX_*.nc')['horizontalVelX']
-        self.horizontalVelY = open_dataset(output_dir, 'horizontalVelY_*.nc')['horizontalVelY']
+        self.ds_z = open_dataset(output_dir, 'zCoordinates_*.nc')
+        self.zCoordinates = self.ds_z['zCoordinates']
+        self.ds_t = open_dataset(output_dir, 'temperature_*.nc')
+        self.temperature = self.ds_t['temperature']
+        self.ds_s = open_dataset(output_dir, 'salinity_*.nc')
+        self.salinity = self.ds_s['salinity']
+        self.ds_vx = open_dataset(output_dir, 'horizontalVelX_*.nc')
+        self.horizontalVelX = self.ds_vx['horizontalVelX']
+        self.ds_vy = open_dataset(output_dir, 'horizontalVelY_*.nc')
+        self.horizontalVelY = self.ds_vy['horizontalVelY']
 
     def close(self):
         """Closes SCHISM output datasets."""
 
-        self.elevation.close()
-        self.depthAverageVelX.close()
-        self.depthAverageVelY.close()
-
-        self.zCoordinates.close()
-        self.temperature.close()
-        self.salinity.close()
-        self.horizontalVelX.close()
-        self.horizontalVelY.close()
+        self.ds_2d.close()
+        self.ds_z.close()
+        self.ds_t.close()
+        self.ds_s.close()
+        self.ds_vx.close()
+        self.ds_vy.close()
 
