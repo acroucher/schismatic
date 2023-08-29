@@ -17,6 +17,7 @@ from schismatic import geom, quadtree
 import numpy as np
 from scipy import sparse
 from scipy.spatial import cKDTree
+from scipy.interpolate import interp1d
 from pyproj import Transformer
 import netCDF4
 from vtk import vtkUnstructuredGrid, vtkPoints, vtkIdList, vtkFloatArray
@@ -72,6 +73,11 @@ class element(object):
             self._centroid = geom.polygon_centroid(poly)
         return self._centroid
     centroid = property(_get_centroid)
+
+    def _get_values(self):
+        """Gets array of nodal values for the element."""
+        return np.array([n.value for n in self.node])
+    values = property(_get_values)
 
     def get_neighbour(self):
         """Returns set of other elements sharing a node with the element."""
@@ -185,6 +191,101 @@ class element(object):
             self._size = np.max(side_lengths)
         return self._size
     size = property(_get_size)
+
+    def profile(self, pos, z, val, val2 = None, time = None, times = None):
+        """Returns interpolated vertical profile of values at given position
+        (assumed to be inside the element). If no time is specified,
+        it is assumed that the z and val np.arrays have dimensions of
+        (num nodes, num levels).  Otherwise, they must have an
+        additional first dimension of time (and the times
+        corresponding to the values must also be specified). An
+        optional second values array can also be processed (e.g. for
+        velocities).
+        """
+
+        def check_shaved(z):
+            """Modify element node z profiles for shaved bottom cells, and return
+            index mapping for identifying correct values to use"""
+            eps = 1.e-3
+            nz = np.size(z, axis = 1)
+            zmap = np.zeros(np.shape(z), dtype = int)
+            for i in range(nz):
+                zmap[:, i] = i
+                inan = np.where(np.isnan(z[:, i]))[0]
+                if 0 < len(inan) < self.num_nodes:
+                    # mix of wet/dry nodes on this level
+                    if i < nz:
+                        # set elevation of node below bottom to just below bottom:
+                        z[inan, i] = z[inan, i + 1] - eps
+                        # map node values below bottom to next node up:
+                        zmap[inan, i] = i + 1
+                    else:
+                        raise Exception("pos_profile() failed: shaved cell at surface")
+            return z, zmap
+
+        def adjust_shaved(v, zmap):
+            """Replace values in shaved cell nodes as needed"""
+            nn, nz = np.shape(v)
+            for i in range(nz):
+                for j in range(nn):
+                    v[j, i] = v[j, zmap[j, i]]
+            return v
+
+        if time is not None:
+            itime = np.searchsorted(times, time)
+            tw = (time - times[itime - 1]) / (times[itime] - times[itime - 1])
+            z = (1 - tw) * z[itime - 1, :, :] + tw * z[itime, :, :]
+            val = (1 - tw) * val[itime - 1, :, :] + tw * val[itime, :, :]
+            if val2 is not None:
+                val2 = (1 - tw) * val2[itime - 1, :, :] + tw * val2[itime, :, :]
+
+        xi = self.local_pos(pos)
+        node_z, zmap = check_shaved(z)
+        z_profile = self.interpolate(node_z.T, xi)
+        iwet = np.where(np.isfinite(z_profile))[0]
+        z_profile = z_profile[iwet]
+        node_val = adjust_shaved(val, zmap)[:, iwet]
+        val_profile = self.interpolate(node_val.T, xi)
+        if val2 is None:
+            return z_profile, val_profile
+        else:
+            node_val2 = adjust_shaved(val2, zmap)[:, iwet]
+            val2_profile = self.interpolate(node_val2.T, xi)
+            return z_profile, val_profile, val2_profile
+
+    def history(self, pos, times, z, val,
+                    val2 = None, height = None, depth = 0, out_times = None):
+        """Returns time history of values at specified position (assumed
+        inside the element), height above the seafloor or depth below
+        surface and optionally specified output times.
+        """
+
+        if out_times is None:
+            out_times = times
+        if height is not None:
+            xi = self.local_pos(pos)
+            z0 = -self.interpolate(self.values, xi)
+            z_h = z0 + height
+        results, results2 = [], []
+
+        for t in out_times:
+            if val2 is None:
+                z_profile, val_profile = self.profile(pos, z, val, time = t, times = times)
+            else:
+                z_profile, val_profile, val2_profile = self.profile(pos, z, val, val2,
+                                                                    t, times)
+            if height is None:
+                z_h = z_profile[-1] - depth
+            valz = interp1d(z_profile, val_profile, kind = 'linear')(z_h)
+            results.append(valz)
+            if val2 is not None:
+                val2z = interp1d(z_profile, val2_profile, kind = 'linear')(z_h)
+                results2.append(val2z)
+
+        if val2 is None:
+            return times, np.array(results)
+        else:
+            return times, np.array(results), np.array(results2)
 
 class boundary(object):
     """Grid boundary"""
@@ -742,10 +843,64 @@ class grid(object):
         elt = self.find_element(pos)
         if elt:
             xi = elt.local_pos(pos)
-            vals = v[elt.node_indices]
-            return elt.interpolate(vals, xi)
+            idx = elt.node_indices
+            return elt.interpolate(v[idx], xi)
         else:
             return None
+
+    def profile(self, pos, z, val, val2 = None, time = None, times = None):
+        """Returns interpolated vertical profile of values at given position
+        (or None if pos is outside the grid). If a time is not
+        specified, it is assumed that the z and val xarrays have
+        dimensions of (num nodes, num levels). Otherwise, these arrays
+        must have an additional first dimension of time (and the times
+        corresponding to the values must also be specified).  An
+        optional second values array can also be processed (e.g. for
+        velocities).
+        """
+
+        elt = self.find_element(pos)
+        if elt:
+            idx = elt.node_indices
+            if val2 is None:
+                if times is None:
+                    return elt.profile(pos, z[idx, :].values, val[idx, :].values)
+                else:
+                    return elt.profile(pos, z[:, idx, :].values,
+                                       val[:, idx, :].values, time = time, times = times)
+            else:
+                if times is None:
+                    return elt.profile(pos, z[idx, :].values,
+                                       val[idx, :].values, val2[idx, :].values)
+                else:
+                    return elt.profile(pos, z[:, idx, :].values,
+                                       val[:, idx, :].values, val2[:, idx, :].values,
+                                       time, times)
+        else:
+            return None
+
+    def history(self, pos, times, z, val, val2 = None, height = None,
+                    depth = 0, out_times = None):
+        """Returns time history of values at specified position, height above
+        the seafloor or depth below surface The z and val xarrays
+        specify the 3D nodal z coordinates and values. A second value
+        array (val2) can optionally also be specified.
+        """
+
+        elt = self.find_element(pos)
+        if elt:
+            idx = elt.node_indices
+            if val2 is None:
+                return elt.history(pos, times, z[:, idx, :].values,
+                                       val[:, idx, :].values,
+                                       height = height, depth = depth,
+                                       out_times = out_times)
+            else:
+                return elt.history(pos, times, z[:, idx, :].values,
+                                       val[:, idx, :].values,
+                                       val2 = val2[:, idx, :].values,
+                                       height = height, depth = depth,
+                                       out_times = out_times)
 
     def cfl(self, timestep = 200., min_depth = 0.1):
         """Return array of nodal estimates of CFL number."""
