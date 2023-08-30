@@ -274,8 +274,6 @@ class element(object):
             results.append(valz)
 
         results = [col for col in np.array(results).T]
-        if len(val) == 1:
-            results = results[0]
         return times, results
 
 class boundary(object):
@@ -856,14 +854,17 @@ class grid(object):
             if not isinstance(val, (tuple, list)):
                 val = [val]
             if times is None:
-                return elt.profile(pos, z[idx, :].values,
+                z, results = elt.profile(pos, z[idx, :].values,
                                    [v[idx, :].values for v in val])
             else:
-                return elt.profile(pos, z[:, idx, :].values,
+                z, results = elt.profile(pos, z[:, idx, :].values,
                                    [v[:, idx, :].values for v in val],
                                    time, times)
+            if len(results) == 1:
+                results = results[0]
+            return z, results
         else:
-            return None
+            return None, None
 
     def history(self, pos, times, z, val, height = None,
                     depth = 0, out_times = None):
@@ -879,10 +880,15 @@ class grid(object):
             idx = elt.node_indices
             if not isinstance(val, (tuple, list)):
                 val = [val]
-            return elt.history(pos, times, z[:, idx, :].values,
-                                   [v[:, idx, :].values for v in val],
-                                   height = height, depth = depth,
-                                   out_times = out_times)
+            t, results = elt.history(pos, times, z[:, idx, :].values,
+                                     [v[:, idx, :].values for v in val],
+                                     height = height, depth = depth,
+                                     out_times = out_times)
+            if len(results) == 1:
+                results = results[0]
+            return t, results
+        else:
+            return None, None
 
     def cfl(self, timestep = 200., min_depth = 0.1):
         """Return array of nodal estimates of CFL number."""
