@@ -192,15 +192,15 @@ class element(object):
         return self._size
     size = property(_get_size)
 
-    def profile(self, pos, z, val, val2 = None, time = None, times = None):
+    def profile(self, pos, z, val, time = None, times = None):
         """Returns interpolated vertical profile of values at given position
         (assumed to be inside the element). If no time is specified,
         it is assumed that the z and val np.arrays have dimensions of
         (num nodes, num levels).  Otherwise, they must have an
         additional first dimension of time (and the times
-        corresponding to the values must also be specified). An
-        optional second values array can also be processed (e.g. for
-        velocities).
+        corresponding to the values must also be specified). The val
+        parameter can also be a tuple or list of xarrays, in which
+        case multiple profiles are returned.
         """
 
         def check_shaved(z):
@@ -231,61 +231,52 @@ class element(object):
                     v[j, i] = v[j, zmap[j, i]]
             return v
 
+        if not isinstance(val, (tuple, list)):
+            val = [val]
         if time is not None:
             itime = np.searchsorted(times, time)
             tw = (time - times[itime - 1]) / (times[itime] - times[itime - 1])
             z = (1 - tw) * z[itime - 1, :, :] + tw * z[itime, :, :]
-            val = (1 - tw) * val[itime - 1, :, :] + tw * val[itime, :, :]
-            if val2 is not None:
-                val2 = (1 - tw) * val2[itime - 1, :, :] + tw * val2[itime, :, :]
+            val = [(1 - tw) * v[itime - 1, :, :] + tw * v[itime, :, :] for v in val]
 
         xi = self.local_pos(pos)
         node_z, zmap = check_shaved(z)
         z_profile = self.interpolate(node_z.T, xi)
         iwet = np.where(np.isfinite(z_profile))[0]
         z_profile = z_profile[iwet]
-        node_val = adjust_shaved(val, zmap)[:, iwet]
-        val_profile = self.interpolate(node_val.T, xi)
-        if val2 is None:
-            return z_profile, val_profile
-        else:
-            node_val2 = adjust_shaved(val2, zmap)[:, iwet]
-            val2_profile = self.interpolate(node_val2.T, xi)
-            return z_profile, val_profile, val2_profile
+        node_val = [adjust_shaved(v, zmap)[:, iwet] for v in val]
+        val_profile = [self.interpolate(node_v.T, xi) for node_v in node_val]
+        return z_profile, val_profile
 
-    def history(self, pos, times, z, val,
-                    val2 = None, height = None, depth = 0, out_times = None):
+    def history(self, pos, times, z, val, height = None, depth = 0, out_times = None):
         """Returns time history of values at specified position (assumed
         inside the element), height above the seafloor or depth below
-        surface and optionally specified output times.
+        surface and optionally specified output times. The val
+        parameter can also be a tuple or list of xarrays, in which
+        case multiple histories are returned.
         """
 
+        if not isinstance(val, (tuple, list)):
+            val = [val]
         if out_times is None:
             out_times = times
         if height is not None:
             xi = self.local_pos(pos)
             z0 = -self.interpolate(self.values, xi)
             z_h = z0 + height
-        results, results2 = [], []
+        results = []
 
         for t in out_times:
-            if val2 is None:
-                z_profile, val_profile = self.profile(pos, z, val, time = t, times = times)
-            else:
-                z_profile, val_profile, val2_profile = self.profile(pos, z, val, val2,
-                                                                    t, times)
+            z_profile, val_profiles = self.profile(pos, z, val, time = t, times = times)
             if height is None:
                 z_h = z_profile[-1] - depth
-            valz = interp1d(z_profile, val_profile, kind = 'linear')(z_h)
+            valz = [interp1d(z_profile, vp, kind = 'linear')(z_h) for vp in val_profiles]
             results.append(valz)
-            if val2 is not None:
-                val2z = interp1d(z_profile, val2_profile, kind = 'linear')(z_h)
-                results2.append(val2z)
 
-        if val2 is None:
-            return times, np.array(results)
-        else:
-            return times, np.array(results), np.array(results2)
+        results = [col for col in np.array(results).T]
+        if len(val) == 1:
+            results = results[0]
+        return times, results
 
 class boundary(object):
     """Grid boundary"""
@@ -848,59 +839,50 @@ class grid(object):
         else:
             return None
 
-    def profile(self, pos, z, val, val2 = None, time = None, times = None):
+    def profile(self, pos, z, val, time = None, times = None):
         """Returns interpolated vertical profile of values at given position
         (or None if pos is outside the grid). If a time is not
         specified, it is assumed that the z and val xarrays have
         dimensions of (num nodes, num levels). Otherwise, these arrays
         must have an additional first dimension of time (and the times
-        corresponding to the values must also be specified).  An
-        optional second values array can also be processed (e.g. for
-        velocities).
+        corresponding to the values must also be specified).  The val
+        parameter can also be a tuple or list of xarrays, in which
+        case multiple profiles are returned.
         """
 
         elt = self.find_element(pos)
         if elt:
             idx = elt.node_indices
-            if val2 is None:
-                if times is None:
-                    return elt.profile(pos, z[idx, :].values, val[idx, :].values)
-                else:
-                    return elt.profile(pos, z[:, idx, :].values,
-                                       val[:, idx, :].values, time = time, times = times)
+            if not isinstance(val, (tuple, list)):
+                val = [val]
+            if times is None:
+                return elt.profile(pos, z[idx, :].values,
+                                   [v[idx, :].values for v in val])
             else:
-                if times is None:
-                    return elt.profile(pos, z[idx, :].values,
-                                       val[idx, :].values, val2[idx, :].values)
-                else:
-                    return elt.profile(pos, z[:, idx, :].values,
-                                       val[:, idx, :].values, val2[:, idx, :].values,
-                                       time, times)
+                return elt.profile(pos, z[:, idx, :].values,
+                                   [v[:, idx, :].values for v in val],
+                                   time, times)
         else:
             return None
 
-    def history(self, pos, times, z, val, val2 = None, height = None,
+    def history(self, pos, times, z, val, height = None,
                     depth = 0, out_times = None):
         """Returns time history of values at specified position, height above
         the seafloor or depth below surface The z and val xarrays
-        specify the 3D nodal z coordinates and values. A second value
-        array (val2) can optionally also be specified.
+        specify the 3D nodal z coordinates and values. The val
+        parameter can also be a tuple or list of xarrays, in which
+        case multiple history results are returned.
         """
 
         elt = self.find_element(pos)
         if elt:
             idx = elt.node_indices
-            if val2 is None:
-                return elt.history(pos, times, z[:, idx, :].values,
-                                       val[:, idx, :].values,
-                                       height = height, depth = depth,
-                                       out_times = out_times)
-            else:
-                return elt.history(pos, times, z[:, idx, :].values,
-                                       val[:, idx, :].values,
-                                       val2 = val2[:, idx, :].values,
-                                       height = height, depth = depth,
-                                       out_times = out_times)
+            if not isinstance(val, (tuple, list)):
+                val = [val]
+            return elt.history(pos, times, z[:, idx, :].values,
+                                   [v[:, idx, :].values for v in val],
+                                   height = height, depth = depth,
+                                   out_times = out_times)
 
     def cfl(self, timestep = 200., min_depth = 0.1):
         """Return array of nodal estimates of CFL number."""
