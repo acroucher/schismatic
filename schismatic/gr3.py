@@ -248,10 +248,11 @@ class element(object):
         val_profile = [self.interpolate(node_v.T, xi) for node_v in node_val]
         return z_profile, val_profile
 
-    def history(self, pos, times, z, val, height = None, depth = 0, out_times = None):
+    def history(self, pos, times, val, z = None, height = None, depth = None,
+                out_times = None):
         """Returns time history of values at specified position (assumed
         inside the element), height above the seafloor or depth below
-        surface and optionally specified output times. The val
+        surface (for 3D data) and optionally specified output times. The val
         parameter can also be a tuple or list of xarrays, in which
         case multiple histories are returned.
         """
@@ -264,17 +265,20 @@ class element(object):
             xi = self.local_pos(pos)
             z0 = -self.interpolate(self.values, xi)
             z_h = z0 + height
-        results = []
 
-        for t in out_times:
-            z_profile, val_profiles = self.profile(pos, z, val, time = t, times = times)
-            if height is None:
-                z_h = z_profile[-1] - depth
-            valz = [interp1d(z_profile, vp, kind = 'linear')(z_h) for vp in val_profiles]
-            results.append(valz)
-
-        results = [col for col in np.array(results).T]
-        return times, results
+        if height is None and depth is None: # 2D data
+            xi = self.local_pos(pos)
+            results = [self.interpolate(v, xi) for v in val]
+        else: # 3D data
+            results = []
+            for t in out_times:
+                z_profile, val_profiles = self.profile(pos, z, val, time = t, times = times)
+                if height is None:
+                    z_h = z_profile[-1] - depth
+                valz = [interp1d(z_profile, vp, kind = 'linear')(z_h) for vp in val_profiles]
+                results.append(valz)
+            results = [col for col in np.array(results).T]
+        return out_times, results
 
 class boundary(object):
     """Grid boundary"""
@@ -866,8 +870,8 @@ class grid(object):
         else:
             return None, None
 
-    def history(self, pos, times, z, val, height = None,
-                    depth = 0, out_times = None):
+    def history(self, pos, times, val, z = None, height = None,
+                    depth = None, out_times = None):
         """Returns time history of values at specified position, height above
         the seafloor or depth below surface The z and val xarrays
         specify the 3D nodal z coordinates and values. The val
@@ -880,10 +884,16 @@ class grid(object):
             idx = elt.node_indices
             if not isinstance(val, (tuple, list)):
                 val = [val]
-            t, results = elt.history(pos, times, z[:, idx, :].values,
-                                     [v[:, idx, :].values for v in val],
-                                     height = height, depth = depth,
-                                     out_times = out_times)
+            if height is None and depth is None: # 2D data
+                t, results = elt.history(pos, times,
+                                         [v[:, idx].values for v in val],
+                                         out_times = out_times)
+            else:
+                t, results = elt.history(pos, times,
+                                         [v[:, idx, :].values for v in val],
+                                         z = z[:, idx, :].values,
+                                         height = height, depth = depth,
+                                         out_times = out_times)
             if len(results) == 1:
                 results = results[0]
             return t, results
