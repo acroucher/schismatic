@@ -18,11 +18,15 @@ import xarray as xr
 class output(object):
     """SCHISM output object"""
 
-    def __init__(self, output_dir = 'outputs'):
+    def __init__(self, output_dir = 'outputs', indices = None):
         """Initialise SCHISM output."""
 
         def open_dataset(output_dir, filename):
-            return xr.open_mfdataset(os.path.join(output_dir, filename),
+            if isinstance(filename, str):
+                fnames = os.path.join(output_dir, filename)
+            else:
+                fnames = [os.path.join(output_dir, f) for f in filename]
+            return xr.open_mfdataset(fnames,
                                      concat_dim = 'time',
                                      combine = 'nested', data_vars = 'minimal',
                                      coords = 'minimal', compat = 'override').sortby('time')
@@ -38,7 +42,13 @@ class output(object):
             mins = int((h - hr) * 60)
             return datetime(y, m, d, hr, mins)
 
-        self.ds_2d = open_dataset(output_dir, 'out2d_*.nc')
+        def filenames(base, indices):
+            if indices is None:
+                return base + '_*.nc'
+            else:
+                return ['%s_%d.nc' % (base, i) for i in indices]
+
+        self.ds_2d = open_dataset(output_dir, filenames('out2d', indices))
 
         self.start_datetime = schism_start_datetime(self.ds_2d)
         self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
@@ -50,15 +60,15 @@ class output(object):
         self.depthAverageVelX = self.ds_2d['depthAverageVelX']
         self.depthAverageVelY = self.ds_2d['depthAverageVelY']
 
-        self.ds_z = open_dataset(output_dir, 'zCoordinates_*.nc')
+        self.ds_z = open_dataset(output_dir, filenames('zCoordinates', indices))
         self.zCoordinates = self.ds_z['zCoordinates']
-        self.ds_t = open_dataset(output_dir, 'temperature_*.nc')
+        self.ds_t = open_dataset(output_dir, filenames('temperature', indices))
         self.temperature = self.ds_t['temperature']
-        self.ds_s = open_dataset(output_dir, 'salinity_*.nc')
+        self.ds_s = open_dataset(output_dir, filenames('salinity', indices))
         self.salinity = self.ds_s['salinity']
-        self.ds_vx = open_dataset(output_dir, 'horizontalVelX_*.nc')
+        self.ds_vx = open_dataset(output_dir, filenames('horizontalVelX', indices))
         self.horizontalVelX = self.ds_vx['horizontalVelX']
-        self.ds_vy = open_dataset(output_dir, 'horizontalVelY_*.nc')
+        self.ds_vy = open_dataset(output_dir, filenames('horizontalVelY', indices))
         self.horizontalVelY = self.ds_vy['horizontalVelY']
 
     def close(self):
