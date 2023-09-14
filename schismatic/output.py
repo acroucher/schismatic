@@ -64,10 +64,23 @@ class output(object):
     def close(self):
         """Closes SCHISM output datasets."""
 
+        self.elevation.close()
+        self.depthAverageVelX.close()
+        self.depthAverageVelY.close()
         self.ds_2d.close()
+
+        self.zCoordinates.close()
         self.ds_z.close()
+
+        self.temperature.close()
         self.ds_t.close()
+
+        self.salinity.close()
         self.ds_s.close()
+
+        self.horizontalVelX.close()
         self.ds_vx.close()
+
+        self.horizontalVelY.close()
         self.ds_vy.close()
 
