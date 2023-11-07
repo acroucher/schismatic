@@ -18,7 +18,7 @@ import xarray as xr
 class output(object):
     """SCHISM output object"""
 
-    def __init__(self, output_dir = 'outputs', indices = None):
+    def __init__(self, output_dir = 'outputs', indices = None, oldio = False):
         """Initialise SCHISM output."""
 
         def open_dataset(output_dir, filename):
@@ -48,28 +48,58 @@ class output(object):
             else:
                 return ['%s_%d.nc' % (base, i) for i in indices]
 
-        self.ds_2d = open_dataset(output_dir, filenames('out2d', indices))
+        def init_oldio(output_dir, indices):
+            # old SCHISM output (flag OLDIO in SCHISM 5.10)
 
-        self.start_datetime = schism_start_datetime(self.ds_2d)
-        self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
-                                                        for s in self.ds_2d['time'].values])
-        self.end_datetime = self.datetime[-1]
-        self.num_times = len(self.datetime)
+            self.ds = open_dataset(output_dir, filenames('schout', indices))
+            self.start_datetime = schism_start_datetime(self.ds)
+            t = self.ds['time'].values
+            secs = (t - t[0]) / np.timedelta64(1, 's')
+            self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
+                                                            for s in secs])
+            self.end_datetime = self.datetime[-1]
+            self.num_times = len(self.datetime)
 
-        self.elevation = self.ds_2d['elevation']
-        self.depthAverageVelX = self.ds_2d['depthAverageVelX']
-        self.depthAverageVelY = self.ds_2d['depthAverageVelY']
+            self.elevation = self.ds['elev']
+            self.depthAverageVelX = self.ds['dahv'][:,:,0]
+            self.depthAverageVelY = self.ds['dahv'][:,:,1]
 
-        self.ds_z = open_dataset(output_dir, filenames('zCoordinates', indices))
-        self.zCoordinates = self.ds_z['zCoordinates']
-        self.ds_t = open_dataset(output_dir, filenames('temperature', indices))
-        self.temperature = self.ds_t['temperature']
-        self.ds_s = open_dataset(output_dir, filenames('salinity', indices))
-        self.salinity = self.ds_s['salinity']
-        self.ds_vx = open_dataset(output_dir, filenames('horizontalVelX', indices))
-        self.horizontalVelX = self.ds_vx['horizontalVelX']
-        self.ds_vy = open_dataset(output_dir, filenames('horizontalVelY', indices))
-        self.horizontalVelY = self.ds_vy['horizontalVelY']
+            self.zCoordinates = self.ds['zcor']
+            self.temperature = self.ds['temp']
+            self.salinity = self.ds['salt']
+            self.horizontalVelX = self.ds['hvel'][:,:,:,0]
+            self.horizontalVelY = self.ds['hvel'][:,:,:,1]
+
+        def init_newio(output_dir, indices):
+            # New SCHISM >= 5.10 scribed output
+
+            self.ds_2d = open_dataset(output_dir, filenames('out2d', indices))
+            self.start_datetime = schism_start_datetime(self.ds_2d)
+            self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
+                                                            for s in self.ds_2d['time'].values])
+            self.end_datetime = self.datetime[-1]
+            self.num_times = len(self.datetime)
+
+            self.elevation = self.ds_2d['elevation']
+            self.depthAverageVelX = self.ds_2d['depthAverageVelX']
+            self.depthAverageVelY = self.ds_2d['depthAverageVelY']
+
+            self.ds_z = open_dataset(output_dir, filenames('zCoordinates', indices))
+            self.zCoordinates = self.ds_z['zCoordinates']
+            self.ds_t = open_dataset(output_dir, filenames('temperature', indices))
+            self.temperature = self.ds_t['temperature']
+            self.ds_s = open_dataset(output_dir, filenames('salinity', indices))
+            self.salinity = self.ds_s['salinity']
+            self.ds_vx = open_dataset(output_dir, filenames('horizontalVelX', indices))
+            self.horizontalVelX = self.ds_vx['horizontalVelX']
+            self.ds_vy = open_dataset(output_dir, filenames('horizontalVelY', indices))
+            self.horizontalVelY = self.ds_vy['horizontalVelY']
+
+        self.oldio = oldio
+        if self.oldio:
+            init_oldio(output_dir, indices)
+        else:
+            init_newio(output_dir, indices)
 
     def close(self):
         """Closes SCHISM output datasets."""
@@ -77,20 +107,19 @@ class output(object):
         self.elevation.close()
         self.depthAverageVelX.close()
         self.depthAverageVelY.close()
-        self.ds_2d.close()
 
         self.zCoordinates.close()
-        self.ds_z.close()
-
         self.temperature.close()
-        self.ds_t.close()
-
         self.salinity.close()
-        self.ds_s.close()
-
         self.horizontalVelX.close()
-        self.ds_vx.close()
-
         self.horizontalVelY.close()
-        self.ds_vy.close()
 
+        if self.oldio:
+            self.ds.close()
+        else:
+            self.ds_2d.close()
+            self.ds_z.close()
+            self.ds_t.close()
+            self.ds_s.close()
+            self.ds_vx.close()
+            self.ds_vy.close()
