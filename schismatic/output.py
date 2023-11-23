@@ -54,9 +54,11 @@ class output(object):
             self.ds = open_dataset(output_dir, filenames('schout', indices))
             self.start_datetime = schism_start_datetime(self.ds)
             t = self.ds['time'].values
-            secs = (t - t[0]) / np.timedelta64(1, 's')
-            self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
-                                                            for s in secs])
+            epoch = np.datetime64(0, 's')
+            zone = float(self.ds.time.base_date.split()[-1])
+            secs = (t - epoch) / np.timedelta64(1, 's')
+            utc_datetimes = np.array([datetime.utcfromtimestamp(s) for s in secs])
+            self.datetime = utc_datetimes - timedelta(hours = zone)
             self.end_datetime = self.datetime[-1]
             self.num_times = len(self.datetime)
 
