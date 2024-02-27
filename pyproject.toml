@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schismatic"
+version = "0.0.2"
+description = "Library for pre- and post-processing of SCHISM simulations"
+readme = "README.md"
+authors = [
+  {name = "Adrian Croucher", email = "a.croucher@auckland.ac.nz"}
+]
+license = {file = "LICENSE"}
+requires-python = ">=2.7"
+dependencies = [
+  "numpy",
+  "scipy",
+  "pyproj",
+  "netCDF4",
+  "meshio",
+  "matplotlib",
+  "vtk"
+]
+classifiers = [
+  "Programming Language :: Python :: 2",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+  "Operating System :: OS Independent"
+]
+
+[project.urls]
+repository = "http://github.com/acroucher/schismatic"
+
