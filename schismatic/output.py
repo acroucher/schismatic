@@ -14,6 +14,28 @@ import os
 from datetime import datetime, timedelta
 import numpy as np
 import xarray as xr
+import calendar
+
+def date_range_filenames(start_year, end_year, start_month = 1, end_month = 12,
+                         start_day = 1, end_day = None,
+                         base_dir = './', filename = 'schout'):
+    """Returns list of filenames, based on given filename, for specified date range.
+       Files are assumed to be daily results in year/month directories."""
+    filenames = []
+    for y in range(start_year, end_year + 1):
+        m0 = start_month if y == start_year else 1
+        m1 = end_month if y == end_year else 12
+        for m in range(m0, m1 + 1):
+            mdays = calendar.monthrange(y, m)[1]
+            day1 = mdays if end_day is None else end_day
+            d0 = start_day if m == m0 else 1
+            d1 = day1 if m == m1 else mdays
+            month_filenames = [os.path.join(base_dir,
+                                            '%4d' % y, '%02d' % m,
+                                            '%s_%d.nc' % (filename, d))
+                               for d in range(d0, d1 + 1)]
+            filenames += month_filenames
+    return filenames
 
 class output(object):
     """SCHISM output object"""
