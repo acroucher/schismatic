@@ -18,18 +18,8 @@ import xarray as xr
 class output(object):
     """SCHISM output object"""
 
-    def __init__(self, output_dir = 'outputs', indices = None, oldio = False):
+    def __init__(self, filenames, oldio = False):
         """Initialise SCHISM output."""
-
-        def open_dataset(output_dir, filename):
-            if isinstance(filename, str):
-                fnames = os.path.join(output_dir, filename)
-            else:
-                fnames = [os.path.join(output_dir, f) for f in filename]
-            return xr.open_mfdataset(fnames,
-                                     concat_dim = 'time',
-                                     combine = 'nested', data_vars = 'minimal',
-                                     coords = 'minimal', compat = 'override').sortby('time')
 
         def schism_start_datetime(ds):
             start_str = ds.time.base_date
@@ -42,16 +32,10 @@ class output(object):
             mins = int((h - hr) * 60)
             return datetime(y, m, d, hr, mins)
 
-        def filenames(base, indices):
-            if indices is None:
-                return base + '_*.nc'
-            else:
-                return ['%s_%d.nc' % (base, i) for i in indices]
-
-        def init_oldio(output_dir, indices):
+        def init_oldio(filenames):
             # old SCHISM output (flag OLDIO in SCHISM 5.10)
 
-            self.ds = open_dataset(output_dir, filenames('schout', indices))
+            self.ds = xr.open_mfdataset(filenames)
             self.start_datetime = schism_start_datetime(self.ds)
             t = self.ds['time'].values
             epoch = np.datetime64(0, 's')
@@ -72,10 +56,13 @@ class output(object):
             self.horizontalVelX = self.ds['hvel'][:,:,:,0]
             self.horizontalVelY = self.ds['hvel'][:,:,:,1]
 
-        def init_newio(output_dir, indices):
+        def init_newio(filenames):
             # New SCHISM >= 5.10 scribed output
 
-            self.ds_2d = open_dataset(output_dir, filenames('out2d', indices))
+            def dataset_filenames(filenames, dataset_filename):
+                return [f.replace('*', dataset_filename) for f in filenames]
+
+            self.ds_2d = xr.open_mfdataset(dataset_filenames(filenames, 'out2d'))
             self.start_datetime = schism_start_datetime(self.ds_2d)
             self.datetime = self.start_datetime + np.array([timedelta(seconds = s)
                                                             for s in self.ds_2d['time'].values])
@@ -86,22 +73,22 @@ class output(object):
             self.depthAverageVelX = self.ds_2d['depthAverageVelX']
             self.depthAverageVelY = self.ds_2d['depthAverageVelY']
 
-            self.ds_z = open_dataset(output_dir, filenames('zCoordinates', indices))
+            self.ds_z = xr.open_mfdataset(dataset_filenames(filenames, 'zCoordinates'))
             self.zCoordinates = self.ds_z['zCoordinates']
-            self.ds_t = open_dataset(output_dir, filenames('temperature', indices))
+            self.ds_t = xr.open_mfdataset(dataset_filenames(filenames, 'temperature'))
             self.temperature = self.ds_t['temperature']
-            self.ds_s = open_dataset(output_dir, filenames('salinity', indices))
+            self.ds_s = xr.open_mfdataset(dataset_filenames(filenames, 'salinity'))
             self.salinity = self.ds_s['salinity']
-            self.ds_vx = open_dataset(output_dir, filenames('horizontalVelX', indices))
+            self.ds_vx = xr.open_mfdataset(dataset_filenames(filenames, 'horizontalVelX'))
             self.horizontalVelX = self.ds_vx['horizontalVelX']
-            self.ds_vy = open_dataset(output_dir, filenames('horizontalVelY', indices))
+            self.ds_vy = xr.open_mfdataset(dataset_filenames(filenames, 'horizontalVelY'))
             self.horizontalVelY = self.ds_vy['horizontalVelY']
 
         self.oldio = oldio
         if self.oldio:
-            init_oldio(output_dir, indices)
+            init_oldio(filenames)
         else:
-            init_newio(output_dir, indices)
+            init_newio(filenames)
 
     def close(self):
         """Closes SCHISM output datasets."""
